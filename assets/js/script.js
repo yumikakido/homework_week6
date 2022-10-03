@@ -1,5 +1,5 @@
 // OpenWeather API key
-const API_KEY = '4437d39c4180ddc2a8b24fa6b04d88eb';
+const API_KEY = ''; //will be provided separately
 
 // Selectors for HTML elements
 var cityEl = $('#city-name-and-date');
