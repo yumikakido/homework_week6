@@ -1,66 +1,127 @@
 // OpenWeather API key
-const apiKey = 'b40315888b2be2a116dda813b0a9e846';
+const API_KEY = '4437d39c4180ddc2a8b24fa6b04d88eb';
 
-function getSearchedCities() {
+// Selectors for HTML elements
+var cityEl = $('#city-name-and-date');
+var firstDayEl = $('.first-day');
+var secondDayEl = $('.second-day');
+var thirdDayEl = $('.third-day');
+var fourthDayEl = $('.fourth-day');
+var fifthDayEl = $('.fifth-day');
+var todaysWeatherIconEl = $('.todays-weather-icon');
+var firstDayWeatherIconEl = $('.first-day-weather-icon');
+var secondDayWeatherIconEl = $('.second-day-weather-icon');
+var thirdDayWeatherIconEl = $('.third-day-weather-icon');
+var fourthDayWeatherIconEl = $('.fourth-day-weather-icon');
+var fifthDayWeatherIconEl = $('.fifth-day-weather-icon');
 
-    return JSON.parse(localStorage.getItem("cities")) || [];
+var todaysTempEl = $('.todays-temperature');
+var todaysWindEl = $('.todays-wind');
+var todaysHumidityEl = $('.todays-humidity');
+var uvEl = $('.uv');
+var historyEl = $('#city-list');
+
+// Selectors for form elements
+var inputCity = $('#input-city');
+
+// Store searched city
+var searchedCities = [];
+
+// Display today's weather
+function callApi(cityName) {
+    var requestOptions = {
+        method: 'GET',
+        redirect: 'follow'
+    };
+
+    return fetch(`https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${API_KEY}`, requestOptions)
+        .then(response => response.json())
+        .then(
+            responseData => { console.log(responseData); return responseData })
+        .catch(error => console.log('error', error))
 }
 
-$(function(){
-    // get the last item in the history
-    const lastCitySearched = getSearchedCities().slice(-1)[0];
-    // display the weather data
-    // if lastSearched is undefined, return nothing
-    if(!lastCitySearched) {
-        return;
-    }
-    showWeather(lastCitySearched);
-});
+// Display 5 day forecast
+function get5DayForecast(latitude, longitude) {
+    var requestOptions = {
+        method: 'GET',
+        redirect: 'follow'
+    };
 
-function getWeatherApi(city){
-
-    // Call the current api to get lon and lat
-    fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city} &appid=${apiKey}`)
-    .then(function(response){
-        return response.json()
-    })
-    .then(function(result){
-        //console.log('current', result)
-        return{
-                lon: result.coord.lon,
-                lat: result.coord.lat,
+    return fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}`, requestOptions)
+        .then(
+            response => response.json()
+        )
+        .then(
+            responseData => {
+                console.log(responseData)
+                return responseData
             }
-        })
-    .then(function(result){
-        console.log(result);
-         // Call the one call api to get the rest of the info 
-        return fetch(`https://api.openweathermap.org/data/2.5/onecall?lat=${result.lat}&lon=${result.lon}&appid=${apiKey}`)
+        )
+        .catch(error => console.log('error', error));
+}
 
-    })
-    .then(function(result){
-        return result.json();
-    })
-    .then(function(onecallResutl){
-        console.log('onecall', onecallResutl)
-    })
+function callApiAndUpdateText(city) {
+    callApi(city)
+        .then(
+            apiResponse => {
+                cityEl.text(apiResponse.name + " " + '(' + moment(apiResponse.dt * 1000).format('L') + ')');
+                todaysWeatherIconEl.attr("src", `https://openweathermap.org/img/wn/${apiResponse.weather[0].icon}.png`)
+                todaysTempEl.text('Temp: ' + apiResponse.main.temp + ' °F');
+                todaysWindEl.text('Wind: ' + apiResponse.wind.speed + ' MPH');
+                todaysHumidityEl.text('Humidity: ' + apiResponse.main.humidity + ' %');
+                uvEl.html("<span class='uv'>UV Index: </span><button style='pointer-events: none;' type='button' class='uv btn btn-success'>0.41 (Deprecated)</button>")
+                get5DayForecast(apiResponse.coord.lat, apiResponse.coord.lon)
+                    .then(
+                        get5DayForecastResponse => {
+                            var lol = $('.haha')
 
+                            var days = [7, 14, 21, 28, 37]
+                            var text = ''
 
+                            for (let i = 0; i < days.length; i++) {
+                                var theDay = get5DayForecastResponse.list[days[i]]
+                                text = text + `
+                                 <div class="d-flex justify-content-around m-2">
+                                    <div class="card">
+                                    <div class="card-body">
+                                        <p class="first-day">${moment(theDay.dt * 1000).format('L')}</p>
+                                        <img class="first-day-weather-icon" src="https://openweathermap.org/img/wn/${theDay.weather[0].icon}.png">
+                                        <p class="first-day-temp">${'Temp: ' + theDay.main.temp + ' °F'}</p>
+                                        <p class="first-day-wind">${'Wind: ' + theDay.wind.speed + ' MPH'}</p>
+                                        <p class="first-day-humid">${'Humidity: ' + theDay.main.humidity + ' °F'}</p>
+                                    </div>
+                                    </div>
+                                </div>
+                                `
+                            }
+                            lol.html(text)
+                        }
+                    )
+            }
+        )
 }
 
 
-function showWeather(city) {
-    getWeatherApi(city)
-    .then(function(result){
-        //show today's weather
-        result.current
+// Search weather 
+$('#search-btn').on('click', function (event) {
 
-        //show forecast
+    // Prevent it from submitting the form
+    event.preventDefault();
 
-    })
-}
+    var city = inputCity.val().trim();
+    historyEl.append(`<li><button type="button" class="btn ${city}">${city}</button></li><p></p>`);
 
-// if the city is valid, add the city to history
+    $(`.${city}`).on('click', function (event) {
+        event.preventDefault(); // To prevent following the link (optional)
+        callApiAndUpdateText(city)
+    });
 
-// add the city to the sidebar
+    callApiAndUpdateText(city)
+    inputCity.val('');
 
-// when user type in duplicated city, reorder the ranking and move the searched city to the first 
+})
+
+
+
+
